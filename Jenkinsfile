@@ -27,5 +27,4 @@ node('master')
     //sh 'scp /var/lib/jenkins/workspace/Pipeline/webapp/target/webapp.war vagrant@10.10.10.33:/var/lib/tomcat7/webapps/prodenv.war'
   }
   
-  
-  
+}
