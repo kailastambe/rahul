@@ -1,3 +1,4 @@
+//demo code for pipeline
 def devname
 def git_id
 def stagename
@@ -8,7 +9,7 @@ node {
         stage ('SCM') {
 		deleteDir()
 		//cleanWs()
-                checkout([$class: 'GitSCM', branches: [[name: '*/main']], extensions: [], userRemoteConfigs: [[credentialsId: '', url: '']]])
+                checkout([$class: 'GitSCM', branches: [[name: '*/main']], extensions: [], userRemoteConfigs: [[credentialsId: 'mygetid', url: 'git@github.com:kailastambe/rahul.git']]])
 		stageName="CHECKOUT"
 		git_id = sh (returnStdout: true, script:"""git log --oneline --pretty=format:"%H" | head -n 1 """).trim()
 				println git_id
