@@ -1,30 +1,78 @@
-node('built-in') 
-{
-  stage('ContinuousDownload') 
-  {
-    git 'https://github.com/kailastambe/maven.git'
-  } 
-  stage('ContinuousBuild') 
-  {
-    sh 'mvn package'
-  } 
-  stage('ContinuousDeployment') 
-  {
-   echo "I am in deployment phase"
-   // sh 'scp /var/lib/jenkins/workspace/Pipeline/webapp/target/webapp.war vagrant@10.10.10.32:/var/lib/tomcat7/webapps/qaenv.war'
-  }
-  stage('ContinuousTesting') 
-  {
-    echo " I am in Testing Phase"
-    //git 'https://github.com/selenium-saikrishna/TestingOnLinux.git'
-    //sh 'java -jar  /var/lib/jenkins/workspace/Pipeline/testing.jar'
-  }
-  stage('ContinuousDelivery') 
-  {
-   
-   echo " I am in delivery Phase"
-   //input message: 'Waiting for approval from DM', submitter: 'Srinivas'
-    //sh 'scp /var/lib/jenkins/workspace/Pipeline/webapp/target/webapp.war vagrant@10.10.10.33:/var/lib/tomcat7/webapps/prodenv.war'
-  }
-  
+def devname
+def git_id
+def stagename
+def app
+node {
+ 	
+    try {
+        stage ('SCM') {
+		deleteDir()
+		//cleanWs()
+                checkout([$class: 'GitSCM', branches: [[name: '*/main']], extensions: [], userRemoteConfigs: [[credentialsId: '', url: '']]])
+		stageName="CHECKOUT"
+		git_id = sh (returnStdout: true, script:"""git log --oneline --pretty=format:"%H" | head -n 1 """).trim()
+				println git_id
+				devname = sh (returnStdout: true, script:"""git log --pretty=format:"%ae" | head -1""")
+
+println devname
+		                app = sh (returnStdout: true, script: """git log --pretty=format:"%ce" | head -1 """).trim()
+		                println app
+        }
+        stage ('Build') {
+		stagename="BUILD"
+		def stage="Build"
+        	sh "echo 'shell scripts to build project...'"
+		succEmail(stage,devname,git_id)
+        }
+        stage ('Tests') {
+		stagename="TEST"
+		def stage="Test"
+	        parallel 'static': {
+	            sh "echo 'shell scripts to run static tests...'"
+	        },
+'unit': {
+	            sh "echo 'shell scripts to run unit tests...'"
+	        },
+	        'integration': {
+	            sh "echo 'shell scripts to run integration tests.....'"
+	        }
+		succEmail(stage,devname,git_id)
+        }
+      	stage ('Deploy') {
+		stagename="DEPLOY"
+		def stage="Deploy"
+            sh "echo 'shell scripts to deploy to server...'"
+			succEmail(stage,devname,git_id)
+      	}
+} catch (err) {
+                     echo "Build failed with exception: "
+				println(err)
+				JobResult = "FAILED"
+				currentBuild.result = "FAILED"
+				notifyFailed(devname)
+	            throw err
+    }
+}
+def succEmail(stage,devname,git_id) {
+		
+		 emailext (
+					subject: "${stage}: Deployment Success | BUILD #${env.BUILD_NUMBER}",
+					
+					 body: """
+              		
+              		"""
+              		,
+              		mimeType: 'text/html',
+			attachLog: true,
+              		to: devname
+			
+					)			
+		echo "Job success mail"
+	}
+def notifyFailed(devname) {
+  emailext (
+      subject: "FAILED: Job '${env.JOB_NAME} [${env.BUILD_NUMBER}]'",
+      body: "FAILED: Job '${env.JOB_NAME} [${env.BUILD_NUMBER}]': Check console output at '${env.BUILD_URL}' [${env.BUILD_NUMBER}]",
+      to: devname
+    )
 }
